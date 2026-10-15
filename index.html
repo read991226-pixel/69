@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>乃龍變身家豪：雨中揮劍傳說</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            overflow-x: hidden;
+            user-select: none;
+            background-color: #0b0f19;
+        }
+
+        /* 雷光閃爍效果 */
+        @keyframes lightning {
+            0%, 92%, 100% { opacity: 0; }
+            93% { opacity: 0.6; }
+            94% { opacity: 0.1; }
+            96% { opacity: 0.9; }
+        }
+
+        .lightning-bg {
+            position: absolute;
+            inset: 0;
+            background: #e2e8f0;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .flash-active {
+            animation: lightning 0.8s ease-out;
+        }
+
+        /* 變身光芒震波 */
+        @keyframes transformGlow {
+            0% { transform: scale(0.5); opacity: 1; filter: brightness(3); }
+            50% { transform: scale(1.5); opacity: 0.8; filter: brightness(2); }
+            100% { transform: scale(2.5); opacity: 0; filter: brightness(1); }
+        }
+
+        .transform-aura {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,230,0,0.9) 0%, rgba(255,100,0,0.6) 50%, rgba(255,0,0,0) 70%);
+            pointer-events: none;
+            display: none;
+            z-index: 15;
+        }
+
+        .auras-active {
+            display: block;
+            animation: transformGlow 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* 後空翻殘影效果 */
+        .ghost-trail {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.6;
+            filter: blur(1px) brightness(1.3);
+            transition: opacity 0.3s ease-out;
+            z-index: 18;
+        }
+
+        /* 漫畫熱血對話框 */
+        .speech-bubble {
+            position: relative;
+            background: #ffffff;
+            border: 4px solid #000;
+            border-radius: 18px;
+            box-shadow: 6px 6px 0px #000;
+        }
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 20px 15px 0;
+            border-style: solid;
+            border-color: #ffffff transparent;
+            display: block;
+            width: 0;
+        }
+        .speech-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: -26px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 23px 18px 0;
+            border-style: solid;
+            border-color: #000000 transparent;
+            display: block;
+            width: 0;
+        }
+
+        /* 動漫集中線條背景 */
+        .anime-speed-lines {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 90%),
+                        repeating-conic-gradient(from 0deg, rgba(255,255,255,0.05) 0deg 2deg, transparent 2deg 10deg);
+            pointer-events: none;
+            opacity: 0.3;
+            z-index: 2;
+        }
+
+        /* 搖晃震動效果 */
+        .shake {
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between items-center relative overflow-hidden bg-slate-950 text-white">
+
+    <!-- 背景雷光層 -->
+    <div id="lightning" class="lightning-bg"></div>
+
+    <!-- 集中線視覺效果 -->
+    <div class="anime-speed-lines"></div>
+
+    <!-- 主繪圖 Canvas (雨滴、劍氣波、水花、氣浪粒子) -->
+    <canvas id="mainCanvas" class="absolute inset-0 z-10 pointer-events-none"></canvas>
+
+    <!-- 頂部UI標題與 controls -->
+    <header class="z-30 w-full p-4 flex flex-col sm:flex-row justify-between items-center bg-slate-900/60 backdrop-blur-md border-b border-slate-800 gap-3">
+        <div class="flex items-center space-x-3">
+            <span class="text-2xl sm:text-3xl">🐉⚔️</span>
+            <div>
+                <h1 class="text-xl sm:text-2xl font-black tracking-wider text-amber-400 drop-shadow">乃龍變身家豪：雨中斬空極意</h1>
+                <p class="text-xs text-slate-400">當雨水落下時，內心的劍聖即將覺醒...</p>
+            </div>
+        </div>
+        
+        <!-- 雨量與聲音控制 -->
+        <div class="flex items-center gap-4 bg-slate-800/80 px-4 py-2 rounded-xl border border-slate-700">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-cloud-showers-heavy text-blue-400"></i>
+                <label for="rainSlider" class="text-xs font-bold">雨量</label>
+                <input id="rainSlider" type="range" min="0" max="300" value="150" class="w-20 accent-blue-500 cursor-pointer">
+            </div>
+            <button id="soundToggleBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-green-400"></i>
+                <span id="soundText">音效 ON</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 中央角色與互動區域 -->
+    <main class="relative z-20 flex-1 w-full max-w-4xl flex flex-col items-center justify-end pb-24 sm:pb-32">
+        
+        <!-- 對話框 (Memes 台詞) -->
+        <div id="speechBox" class="speech-bubble mb-8 px-6 py-3 max-w-md text-center transform hover:scale-105 transition duration-200">
+            <p id="dialogueText" class="text-black font-black text-lg sm:text-xl tracking-wide">
+                「嗷嗚～我是可愛的乃龍...好想變帥啊！」
+            </p>
+        </div>
+
+        <!-- 角色容器與變身光效 -->
+        <div class="relative flex justify-center items-center">
+            <!-- 變身特效光環 -->
+            <div id="transformAura" class="transform-aura"></div>
+
+            <!-- SVG 角色本體 (乃龍 / 家豪) -->
+            <div id="character" class="cursor-pointer transition-transform duration-100 transform active:scale-95" title="點擊擊發揮劍！">
+                <!-- SVG 會由 JS 動態切換渲染 -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 底部操作面板 / 功能按鈕 -->
+    <footer class="z-30 fixed bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-2xl bg-slate-900/90 backdrop-blur-lg p-3 sm:p-4 rounded-2xl border border-slate-700/80 shadow-2xl flex flex-wrap justify-center items-center gap-3 sm:gap-4">
+        
+        <button id="transformBtn" class="flex-1 min-w-[120px] bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-extrabold py-3 px-3 rounded-xl shadow-lg transform active:scale-95 transition flex items-center justify-center gap-1.5 border-b-4 border-amber-700 text-sm sm:text-base">
+            <i class="fa-solid fa-bolt text-lg"></i>
+            <span id="transformBtnText">變身！【家豪】</span>
+        </button>
+
+        <button id="flipBtn" class="flex-1 min-w-[120px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold py-3 px-3 rounded-xl shadow-lg transform active:scale-95 transition flex items-center justify-center gap-1.5 border-b-4 border-teal-800 text-sm sm:text-base">
+            <i class="fa-solid fa-rotate-left text-lg"></i>
+            <span>後空翻！ (F)</span>
+        </button>
+
+        <button id="slashBtn" class="flex-1 min-w-[120px] bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-extrabold py-3 px-3 rounded-xl shadow-lg transform active:scale-95 transition flex items-center justify-center gap-1.5 border-b-4 border-blue-900 text-sm sm:text-base">
+            <i class="fa-solid fa-hand-fist text-lg"></i>
+            <span>對空揮劍！ (Space)</span>
+        </button>
+
+        <button id="quoteBtn" class="bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold p-3 rounded-xl border border-slate-600 transition flex items-center justify-center" title="隨機熱血台詞">
+            <i class="fa-solid fa-comment-dots text-xl"></i>
+        </button>
+
+        <button id="thunderBtn" class="bg-slate-800 hover:bg-slate-700 text-purple-400 font-bold p-3 rounded-xl border border-slate-600 transition flex items-center justify-center" title="召喚雷電">
+            <i class="fa-solid fa-bolt-lightning text-xl"></i>
+        </button>
+    </footer>
+
+    <!-- 音樂/音效邏輯與主程式碼 -->
+    <script>
+        // ==========================================
+        // 1. 全局狀態與變數
+        // ==========================================
+        const state = {
+            isJiahao: false,      // false: 乃龍, true: 家豪
+            soundEnabled: true,   // 是否開啟音效
+            rainDensity: 150,     // 雨滴數量
+            isAttacking: false,   // 是否正在揮劍
+            isFlipping: false,    // 是否正在後空翻
+            flipProgress: 0,      // 後空翻進度 (0 -> 1)
+        };
+
+        // DOM 元素引用
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const characterEl = document.getElementById('character');
+        const transformBtn = document.getElementById('transformBtn');
+        const transformBtnText = document.getElementById('transformBtnText');
+        const flipBtn = document.getElementById('flipBtn');
+        const slashBtn = document.getElementById('slashBtn');
+        const quoteBtn = document.getElementById('quoteBtn');
+        const thunderBtn = document.getElementById('thunderBtn');
+        const speechBox = document.getElementById('speechBox');
+        const dialogueText = document.getElementById('dialogueText');
+        const lightningBg = document.getElementById('lightning');
+        const transformAura = document.getElementById('transformAura');
+        const rainSlider = document.getElementById('rainSlider');
+        const soundToggleBtn = document.getElementById('soundToggleBtn');
+        const soundIcon = document.getElementById('soundIcon');
+        const soundText = document.getElementById('soundText');
+
+        // 台詞資料庫
+        const nailongQuotes = [
+            "嗷嗚～看我的靈巧乃龍後空翻！",
+            "雖然我是乃龍，但我也有一顆想揮劍的心！",
+            "雨水打在胖胖的肚子上彈開了！",
+            "按一下『變身』，讓你看看我的真正型態！",
+            "誰說胖胖的奶龍不能在空中後空翻？"
+        ];
+
+        const jiahaoQuotes = [
+            "空中降龍斬！看好了，這就是家豪貫穿大雨的一劍！",
+            "這一劍，斬斷這世間所有的虛妄！",
+            "空氣...被我的空中迴旋劍氣撕裂了！",
+            "雨滴在我劍前，也得繞道而行！",
+            "哼，這場雨...還不夠熱血！",
+            "乃龍形態只是我的封印，現在的我是——家豪！",
+            "聽到了嗎？這是天空被我揮劍震怒的雷聲！"
+        ];
+
+        // ==========================================
+        // 2. Web Audio API 音效產生器 (無須外部音檔)
+        // ==========================================
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+            }
+        }
+
+        // 後空翻風聲與躍起音效 (呼～咻！)
+        function playFlipSound() {
+            if (!state.soundEnabled) return;
+            initAudio();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.25);
+            osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.5);
+
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // 揮劍切空聲
+        function playSlashSound(isAirCombo = false) {
+            if (!state.soundEnabled) return;
+            initAudio();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            const baseFreq = isAirCombo ? 1200 : (state.isJiahao ? 800 : 400);
+            osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + (isAirCombo ? 0.25 : 0.15));
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(4000, audioCtx.currentTime);
+            filter.frequency.linearRampToValueAtTime(200, audioCtx.currentTime + 0.2);
+
+            gain.gain.setValueAtTime(isAirCombo ? 0.7 : 0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        }
+
+        // 雷聲爆裂音效
+        function playThunderSound() {
+            if (!state.soundEnabled) return;
+            initAudio();
+
+            // 使用白雜訊模擬雷聲
+            const bufferSize = audioCtx.sampleRate * 1.5;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 1.2);
+
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            noise.start();
+        }
+
+        // 變身爆發音效
+        function playTransformSound() {
+            if (!state.soundEnabled) return;
+            initAudio();
+
+            // 上升頻率音效 + 低音轟鳴
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.4);
+
+            gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+
+            // 伴隨一聲雷鳴
+            setTimeout(playThunderSound, 150);
+        }
+
+        // ==========================================
+        // 3. SVG 角色繪製 (乃龍 vs 家豪)
+        // ==========================================
+        
+        // 可愛黃色胖胖乃龍 SVG
+        const nailongSVG = `
+        <svg width="220" height="260" viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg" class="filter drop-shadow-xl">
+            <!-- 影 -->
+            <ellipse cx="100" cy="225" rx="70" ry="12" fill="rgba(0,0,0,0.4)" />
+            <!-- 乃龍身體 (黃色圓滾滾) -->
+            <path d="M50 120 C50 50, 150 50, 150 120 C160 170, 140 210, 100 210 C60 210, 40 170, 50 120 Z" fill="#FACC15" stroke="#CA8A04" stroke-width="5"/>
+            <!-- 肚子白包 -->
+            <ellipse cx="100" cy="150" rx="35" ry="40" fill="#FEF08A" />
+            <!-- 眼睛 -->
+            <circle cx="75" cy="100" r="8" fill="#1E293B" />
+            <circle cx="125" cy="100" r="8" fill="#1E293B" />
+            <circle cx="78" cy="97" r="3" fill="white" />
+            <circle cx="128" cy="97" r="3" fill="white" />
+            <!-- 腮紅 -->
+            <ellipse cx="65" cy="112" rx="7" ry="4" fill="#F87171" opacity="0.7"/>
+            <ellipse cx="135" cy="112" rx="7" ry="4" fill="#F87171" opacity="0.7"/>
+            <!-- 傻笑嘴巴 -->
+            <path d="M88 115 Q100 128 112 115" stroke="#1E293B" stroke-width="4" stroke-linecap="round" fill="none" />
+            <!-- 爪子/手 (拿著小木劍) -->
+            <ellipse cx="50" cy="140" rx="12" ry="8" fill="#EAB308" />
+            <!-- 木劍 -->
+            <rect x="25" y="100" width="8" height="50" rx="2" fill="#854D0E" transform="rotate(-30 25 100)" />
+            <rect x="20" y="130" width="20" height="6" rx="2" fill="#A16207" transform="rotate(-30 20 130)" />
+            <ellipse cx="150" cy="140" rx="12" ry="8" fill="#EAB308" />
+            <!-- 頭頂小龍角 -->
+            <path d="M80 62 Q75 45 88 48 Z" fill="#EAB308" stroke="#CA8A04" stroke-width="3"/>
+            <path d="M120 62 Q125 45 112 48 Z" fill="#EAB308" stroke="#CA8A04" stroke-width="3"/>
+        </svg>
+        `;
+
+        // 帥氣熱血家豪 SVG (戴發帶、帥氣風衣、利劍)
+        const jiahaoSVG = `
+        <svg width="240" height="280" viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg" class="filter drop-shadow-2xl">
+            <!-- 影 -->
+            <ellipse cx="100" cy="230" rx="60" ry="10" fill="rgba(0,0,0,0.5)" />
+            <!-- 風衣飄逸 -->
+            <path d="M40 130 L10 210 L60 190 L100 210 L140 190 L190 210 L160 130 Z" fill="#0F172A" stroke="#38BDF8" stroke-width="3"/>
+            <!-- 帥氣身體挺拔 -->
+            <path d="M60 100 L140 100 L130 190 L70 190 Z" fill="#1E293B" stroke="#000" stroke-width="4"/>
+            <!-- 胸前熱血標誌 -->
+            <path d="M100 115 L108 130 L92 130 Z" fill="#EF4444" />
+            <!-- 帥氣臉型 -->
+            <path d="M70 65 L130 65 L120 110 L100 120 L80 110 Z" fill="#FDE047" stroke="#000" stroke-width="3"/> <!-- 保留乃龍黃皮膚特徵但變尖銳 -->
+            <!-- 熱血紅頭帶飄揚 -->
+            <rect x="65" y="60" width="70" height="12" fill="#EF4444" />
+            <path d="M130 62 Q160 50 175 70 Q150 75 135 68 Z" fill="#DC2626" />
+            <!-- 銳利眼神 -->
+            <polygon points="75,80 90,83 78,88" fill="#000" />
+            <polygon points="125,80 110,83 122,88" fill="#000" stroke-linecap="round"/>
+            <circle cx="83" cy="84" r="2" fill="#38BDF8" />
+            <circle cx="117" cy="84" r="2" fill="#38BDF8" />
+            <!-- 酷酷嘴角 -->
+            <path d="M92 102 L108 100" stroke="#000" stroke-width="3" stroke-linecap="round" />
+            <!-- 武士發型 -->
+            <path d="M65 60 Q100 35 135 60 Q100 45 65 60 Z" fill="#0F172A" />
+            <!-- 揮劍的手與發光神劍 -->
+            <g id="jiahaoSword">
+                <path d="M130 120 L185 40" stroke="#94A3B8" stroke-width="6" stroke-linecap="round"/>
+                <path d="M130 120 L185 40" stroke="#38BDF8" stroke-width="3" stroke-linecap="round"/>
+                <!-- 劍氣護手 -->
+                <circle cx="138" cy="110" r="8" fill="#F59E0B" />
+            </g>
+        </svg>
+        `;
+
+        function renderCharacter() {
+            characterEl.innerHTML = state.isJiahao ? jiahaoSVG : nailongSVG;
+        }
+
+        // ==========================================
+        // 4. Canvas 雨滴、波紋、劍氣特效粒子系統
+        // ==========================================
+        let width, height;
+        let rainDrops = [];
+        let ripples = [];
+        let slashes = [];
+        let particles = [];
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 雨滴類別
+        class RainDrop {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * -100;
+                this.speed = 12 + Math.random() * 10;
+                this.length = 15 + Math.random() * 20;
+                this.opacity = 0.3 + Math.random() * 0.4;
+            }
+            update() {
+                this.y += this.speed;
+                this.x -= 1.5; // 斜雨
+                if (this.y > height - 80) {
+                    // 撞擊地面產生水花波紋
+                    if (Math.random() < 0.4) {
+                        ripples.push(new Ripple(this.x, height - 60 + Math.random() * 40));
+                    }
+                    this.reset();
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x - 2, this.y + this.length);
+                ctx.strokeStyle = `rgba(186, 230, 253, ${this.opacity})`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+
+        // 水花波紋類別
+        class Ripple {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 1;
+                this.maxRadius = 8 + Math.random() * 10;
+                this.opacity = 0.8;
+            }
+            update() {
+                this.radius += 0.8;
+                this.opacity -= 0.03;
+            }
+            draw() {
+                if (this.opacity <= 0) return;
+                ctx.beginPath();
+                ctx.ellipse(this.x, this.y, this.radius, this.radius * 0.4, 0, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(186, 230, 253, ${this.opacity})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        // 劍氣波特效類別
+        class SwordSlash {
+            constructor(x, y, isPower) {
+                this.x = x;
+                this.y = y;
+                this.size = 10;
+                this.maxSize = isPower ? 350 : 200;
+                this.opacity = 1.0;
+                this.isPower = isPower;
+                this.angle = (Math.random() - 0.5) * 0.6; // 隨機斜角
+            }
+            update() {
+                this.size += this.isPower ? 25 : 18;
+                this.opacity -= 0.04;
+            }
+            draw() {
+                if (this.opacity <= 0) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                // 外發光
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, -Math.PI * 0.35, Math.PI * 0.35);
+                ctx.strokeStyle = this.isPower 
+                    ? `rgba(56, 189, 248, ${this.opacity})` 
+                    : `rgba(251, 191, 36, ${this.opacity})`;
+                ctx.lineWidth = this.isPower ? 16 : 8;
+                ctx.lineCap = 'round';
+                ctx.shadowColor = this.isPower ? '#0284c7' : '#d97706';
+                ctx.shadowBlur = 20;
+                ctx.stroke();
+
+                // 核心白光劍氣
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, -Math.PI * 0.3, Math.PI * 0.3);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.lineWidth = this.isPower ? 6 : 3;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        // 斬擊火花/氣浪粒子
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 16;
+                this.vy = (Math.random() - 0.5) * 16;
+                this.size = Math.random() * 6 + 2;
+                this.opacity = 1;
+                this.color = color;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.opacity -= 0.03;
+            }
+            draw() {
+                if (this.opacity <= 0) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color.replace('1)', `${this.opacity})`);
+                ctx.fill();
+            }
+        }
+
+        // 初始化雨滴
+        function initRain() {
+            rainDrops = [];
+            for (let i = 0; i < state.rainDensity; i++) {
+                rainDrops.push(new RainDrop());
+            }
+        }
+        initRain();
+
+        // Canvas 動畫主迴圈
+        function animate() {
+            // 清除畫布，帶微弱拖尾效果
+            ctx.fillStyle = 'rgba(11, 15, 25, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            // 1. 動態雨滴渲染
+            while (rainDrops.length < state.rainDensity) rainDrops.push(new RainDrop());
+            while (rainDrops.length > state.rainDensity) rainDrops.pop();
+
+            rainDrops.forEach(drop => {
+                drop.update();
+                drop.draw();
+            });
+
+            // 2. 地面水花渲染
+            ripples.forEach((ripple, index) => {
+                ripple.update();
+                ripple.draw();
+                if (ripple.opacity <= 0) ripples.splice(index, 1);
+            });
+
+            // 3. 劍氣波渲染
+            slashes.forEach((slash, index) => {
+                slash.update();
+                slash.draw();
+                if (slash.opacity <= 0) slashes.splice(index, 1);
+            });
+
+            // 4. 氣浪粒子渲染
+            particles.forEach((p, index) => {
+                p.update();
+                p.draw();
+                if (p.opacity <= 0) particles.splice(index, 1);
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // ==========================================
+        // 5. 互動動作與邏輯控制
+        // ==========================================
+
+        // 執行後空翻動畫
+        function executeFlip() {
+            if (state.isFlipping) return;
+            state.isFlipping = true;
+            state.flipProgress = 0;
+
+            playFlipSound();
+            updateDialogue(state.isJiahao ? "「空中迴旋！看我流麗的後空翻！」" : "「呼～乃龍後空翻飛起來啦！」");
+
+            const duration = 650; // 動畫總毫秒
+            const startTime = performance.now();
+            const jumpHeight = 160; // 向上跳躍最大高度 (px)
+
+            // 產生地面起跳水花氣浪
+            const rect = characterEl.getBoundingClientRect();
+            const charCenterX = rect.left + rect.width / 2;
+            const groundY = rect.top + rect.height;
+            for (let i = 0; i < 20; i++) {
+                ripples.push(new Ripple(charCenterX + (Math.random() - 0.5) * 80, groundY - 20));
+                particles.push(new Particle(charCenterX, groundY - 20, 'rgba(186, 230, 253, 1)'));
+            }
+
+            // 定時產生殘影
+            const ghostInterval = setInterval(() => {
+                if (!state.isFlipping) {
+                    clearInterval(ghostInterval);
+                    return;
+                }
+                createGhostTrail();
+            }, 80);
+
+            function flipStep(now) {
+                const elapsed = now - startTime;
+                state.flipProgress = Math.min(elapsed / duration, 1);
+
+                // 拋物線跳躍公式: y = -4 * h * p * (p - 1)
+                const p = state.flipProgress;
+                const translateY = -4 * jumpHeight * p * (1 - p);
+                const rotation = p * -360; // 逆時針後空翻 360 度
+
+                characterEl.style.transform = `translateY(${translateY}px) rotate(${rotation}deg)`;
+
+                // 空中風旋粒子
+                if (Math.random() < 0.6) {
+                    const currentRect = characterEl.getBoundingClientRect();
+                    const cx = currentRect.left + currentRect.width / 2;
+                    const cy = currentRect.top + currentRect.height / 2;
+                    particles.push(new Particle(cx, cy, state.isJiahao ? 'rgba(56, 189, 248, 1)' : 'rgba(253, 224, 71, 1)'));
+                }
+
+                if (state.flipProgress < 1) {
+                    requestAnimationFrame(flipStep);
+                } else {
+                    // 空中落地
+                    characterEl.style.transform = 'translateY(0px) rotate(0deg)';
+                    state.isFlipping = false;
+                    clearInterval(ghostInterval);
+
+                    // 地面落地震波
+                    for (let i = 0; i < 15; i++) {
+                        ripples.push(new Ripple(charCenterX + (Math.random() - 0.5) * 60, groundY - 20));
+                    }
+                }
+            }
+
+            requestAnimationFrame(flipStep);
+        }
+
+        // 建立後空翻殘影 (Ghosting Effect)
+        function createGhostTrail() {
+            const rect = characterEl.getBoundingClientRect();
+            const ghost = characterEl.cloneNode(true);
+            ghost.removeAttribute('id');
+            ghost.classList.add('ghost-trail');
+            ghost.style.left = `${rect.left}px`;
+            ghost.style.top = `${rect.top}px`;
+            ghost.style.width = `${rect.width}px`;
+            ghost.style.height = `${rect.height}px`;
+            document.body.appendChild(ghost);
+
+            setTimeout(() => {
+                ghost.style.opacity = '0';
+                setTimeout(() => ghost.remove(), 300);
+            }, 50);
+        }
+
+        // 觸發揮劍動作 (包含空中連招)
+        function executeSlash() {
+            if (state.isAttacking) return;
+            state.isAttacking = true;
+
+            const isAirCombo = state.isFlipping; // 是否為空中連招
+
+            // 音效
+            playSlashSound(isAirCombo);
+
+            // 取得角色當前即時位置
+            const rect = characterEl.getBoundingClientRect();
+            const charCenterX = rect.left + rect.width / 2;
+            const charCenterY = rect.top + rect.height / 3;
+
+            if (isAirCombo) {
+                // 【空中降龍斬連招】：發射 360 度圓弧環狀劍氣與強烈粒子爆發！
+                slashes.push(new SwordSlash(charCenterX, charCenterY, true));
+                slashes.push(new SwordSlash(charCenterX, charCenterY, false));
+
+                const color = state.isJiahao ? 'rgba(56, 189, 248, 1)' : 'rgba(251, 191, 36, 1)';
+                for (let i = 0; i < 50; i++) {
+                    particles.push(new Particle(charCenterX, charCenterY, color));
+                }
+
+                updateDialogue(state.isJiahao ? "「空中奧義·降龍九天斬！！」" : "「乃龍飛天無敵連環斬！」");
+                triggerLightning(); // 空中連招額外召喚雷光
+            } else {
+                // 普通地上揮劍
+                characterEl.classList.add('shake');
+                characterEl.style.transform = 'scale(1.15) rotate(12deg)';
+
+                slashes.push(new SwordSlash(charCenterX, charCenterY, state.isJiahao));
+
+                const color = state.isJiahao ? 'rgba(56, 189, 248, 1)' : 'rgba(251, 191, 36, 1)';
+                for (let i = 0; i < (state.isJiahao ? 30 : 12); i++) {
+                    particles.push(new Particle(charCenterX, charCenterY, color));
+                }
+
+                updateDialogue(getRandomQuote());
+
+                setTimeout(() => {
+                    if (!state.isFlipping) characterEl.style.transform = 'scale(1) rotate(0deg)';
+                    characterEl.classList.remove('shake');
+                }, 200);
+            }
+
+            setTimeout(() => {
+                state.isAttacking = false;
+            }, 200);
+        }
+
+        // 觸發變身 (乃龍 <-> 家豪)
+        function toggleTransformation() {
+            state.isJiahao = !state.isJiahao;
+
+            // 播放變身特效與音效
+            playTransformSound();
+            triggerLightning();
+
+            // 光波爆發
+            transformAura.classList.remove('auras-active');
+            void transformAura.offsetWidth; // 重置 CSS 動畫
+            transformAura.classList.add('auras-active');
+
+            // 渲染新形態
+            renderCharacter();
+
+            // UI 狀態更新
+            if (state.isJiahao) {
+                transformBtnText.innerText = "退回【乃龍】";
+                transformBtn.className = transformBtn.className.replace('from-amber-500 to-yellow-400', 'from-purple-600 to-pink-600');
+                updateDialogue("「封印解除！吾乃——家豪！此劍一出，划破長空！」");
+            } else {
+                transformBtnText.innerText = "變身！【家豪】";
+                transformBtn.className = transformBtn.className.replace('from-purple-600 to-pink-600', 'from-amber-500 to-yellow-400');
+                updateDialogue("「嗷嗚～變回可愛的乃龍了，剛剛那一劍帥嗎？」");
+            }
+        }
+
+        // 閃電效果
+        function triggerLightning() {
+            playThunderSound();
+            lightningBg.classList.remove('flash-active');
+            void lightningBg.offsetWidth;
+            lightningBg.classList.add('flash-active');
+        }
+
+        // 取得隨機對白
+        function getRandomQuote() {
+            const list = state.isJiahao ? jiahaoQuotes : nailongQuotes;
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        // 更新對話框文字與動畫
+        function updateDialogue(text) {
+            dialogueText.innerText = text;
+            speechBox.classList.remove('shake');
+            void speechBox.offsetWidth;
+            speechBox.classList.add('shake');
+        }
+
+        // ==========================================
+        // 6. 事件監聽器綁定
+        // ==========================================
+
+        // 點擊變身與後空翻按鈕
+        transformBtn.addEventListener('click', toggleTransformation);
+        flipBtn.addEventListener('click', executeFlip);
+
+        // 點擊揮劍按鈕與角色本體
+        slashBtn.addEventListener('click', executeSlash);
+        characterEl.addEventListener('click', executeSlash);
+
+        // 隨機語音對話按鈕
+        quoteBtn.addEventListener('click', () => {
+            updateDialogue(getRandomQuote());
+        });
+
+        // 手動召喚雷電按鈕
+        thunderBtn.addEventListener('click', triggerLightning);
+
+        // 雨量滑桿控制
+        rainSlider.addEventListener('input', (e) => {
+            state.rainDensity = parseInt(e.target.value);
+        });
+
+        // 開關音效
+        soundToggleBtn.addEventListener('click', () => {
+            state.soundEnabled = !state.soundEnabled;
+            if (state.soundEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-green-400";
+                soundText.innerText = "音效 ON";
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-red-400";
+                soundText.innerText = "音效 OFF";
+            }
+        });
+
+        // 鍵盤快捷鍵綁定
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                executeSlash();
+            } else if (e.code === 'KeyF' || e.key === 'Shift') {
+                e.preventDefault();
+                executeFlip();
+            } else if (e.code === 'Enter') {
+                e.preventDefault();
+                toggleTransformation();
+            }
+        });
+
+        // 頁面加載完成初始化
+        window.onload = () => {
+            renderCharacter();
+            animate();
+        };
+
+    </script>
+</body>
+</html>
